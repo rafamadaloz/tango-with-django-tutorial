@@ -7,7 +7,7 @@
 
 {% block body_block %}
     {% if user.is_authenticated %}
-        howdy {{ user.username }}!
+        howdy {{ user.username }}! {{ visits }}
     {% else %}
         hey there partner!
     {% endif %}
