@@ -8,6 +8,7 @@ from registration.backends.simple.views import RegistrationView
 
 from rango import views
 
+
 class MyRegistrationView(RegistrationView):
     def get_success_url(self, user):
         return '/rango/'
