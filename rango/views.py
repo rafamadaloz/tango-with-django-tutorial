@@ -5,9 +5,11 @@ from django.http import HttpResponseRedirect, HttpResponse
 from django.core.urlresolvers import reverse
 from django.contrib.auth.decorators import login_required
 
+from registration.backends.simple.views import RegistrationView
+
 from datetime import datetime
 
-from rango.models import Category, Page
+from rango.models import Category, Page, User, UserProfile
 from rango.forms import CategoryForm, PageForm, UserForm, UserProfileForm
 from rango.webhose_search import run_query
 
@@ -201,3 +203,54 @@ def track_url(request):
             return HttpResponse("Page id {0} not found".format(page_id))
     print("No page_id in get string")
     return redirect(reverse('index'))
+
+@login_required
+def register_profile(request):
+    form = UserProfileForm()
+
+    if request.method == 'POST':
+        form = UserProfileForm(request.POST, request.FILES)
+        if form.is_valid():
+            user_profile = form.save(commit=False)
+            user_profile.user = request.user
+            user_profile.save()
+
+            return redirect('index')
+        else:
+            print(form.errors)
+
+    context_dict = {'form': form}
+
+    return render(request, 'rango/profile_registration.html', context_dict)
+
+@login_required
+def profile(request, username):
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return redirect('index')
+
+    userprofile = UserProfile.objects.get_or_create(user=user)[0]
+    form = UserProfileForm(
+        {'website': userprofile.website, 'picture': userprofile.picture})
+
+    if request.method == 'POST':
+        form = UserProfileForm(request.POST, request.FILES, instance=userprofile)
+        if form.is_valid():
+            form.save(commit=True)
+            return redirect('rango:profile', user.username)
+        else:
+            print(form.errors)
+
+    return render(request, 'rango/profile.html',
+        {'userprofile': userprofile, 'selecteduser': user, 'form': form})
+
+def list_profiles(request):
+    userprofile_list = UserProfile.objects.all()
+    return render(request, 'rango/list_profiles.html',
+        {'userprofile_list' : userprofile_list})
+
+
+class MyRegistrationView(RegistrationView):
+    def get_success_url(self, user):
+        return reverse('rango:register_profile')
