@@ -20,7 +20,7 @@ def index(request):
     context_dict = {
         'most_liked_categories': most_liked_categories,
         'most_viewed_pages': most_viewed_pages
-        }
+    }
 
     visitor_cookie_handler(request)
     context_dict['visits'] = request.session['visits']
@@ -28,9 +28,12 @@ def index(request):
     response = render(request, 'rango/index.html', context=context_dict)
     return response
 
+
 def about(request):
-    context_dict = {'boldmessage': "This tutorial has been put together by Rafael"}
+    context_dict = {
+        'boldmessage': "This tutorial has been put together by Rafael"}
     return render(request, 'rango/about.html', context=context_dict)
+
 
 def show_category(request, category_name_slug):
     context_dict = {}
@@ -57,6 +60,7 @@ def show_category(request, category_name_slug):
 
     return render(request, 'rango/category.html', context_dict)
 
+
 @login_required
 def add_category(request):
     form = CategoryForm()
@@ -71,6 +75,7 @@ def add_category(request):
             print(form.errors)
 
     return render(request, 'rango/add_category.html', {'form': form})
+
 
 @login_required
 def add_page(request, category_name_slug):
@@ -92,7 +97,7 @@ def add_page(request, category_name_slug):
         else:
             print(form.errors)
 
-    context_dict = {'form':form, 'category': category}
+    context_dict = {'form': form, 'category': category}
 
     return render(request, 'rango/add_page.html', context_dict)
 
@@ -156,17 +161,21 @@ def add_page(request, category_name_slug):
 #     logout(request)
 #     return HttpResponseRedirect(reverse('index'))
 
+
 def get_server_side_cookie(request, cookie, default_val=None):
     val = request.session.get(cookie)
     if not val:
         val = default_val
     return val
 
+
 def visitor_cookie_handler(request):
     visits = int(get_server_side_cookie(request, 'visits', '1'))
 
-    last_visit_cookie = get_server_side_cookie(request, 'last_visit', str(datetime.now()))
-    last_visit_time = datetime.strptime(last_visit_cookie[:-7], '%Y-%m-%d %H:%M:%S')
+    last_visit_cookie = get_server_side_cookie(
+        request, 'last_visit', str(datetime.now()))
+    last_visit_time = datetime.strptime(
+        last_visit_cookie[:-7], '%Y-%m-%d %H:%M:%S')
 
     if (datetime.now() - last_visit_time).days > 0:
         visits += 1
@@ -175,6 +184,7 @@ def visitor_cookie_handler(request):
         request.session['last_visit'] = last_visit_cookie
 
     request.session['visits'] = visits
+
 
 def search(request):
     result_list = []
@@ -185,6 +195,7 @@ def search(request):
             result_list = run_query(query)
 
     return render(request, 'rango/search.html', {'result_list': result_list})
+
 
 def track_url(request):
     page_id = None
@@ -203,6 +214,7 @@ def track_url(request):
             return HttpResponse("Page id {0} not found".format(page_id))
     print("No page_id in get string")
     return redirect(reverse('index'))
+
 
 @login_required
 def register_profile(request):
@@ -223,6 +235,7 @@ def register_profile(request):
 
     return render(request, 'rango/profile_registration.html', context_dict)
 
+
 @login_required
 def profile(request, username):
     try:
@@ -235,7 +248,8 @@ def profile(request, username):
         {'website': userprofile.website, 'picture': userprofile.picture})
 
     if request.method == 'POST':
-        form = UserProfileForm(request.POST, request.FILES, instance=userprofile)
+        form = UserProfileForm(
+            request.POST, request.FILES, instance=userprofile)
         if form.is_valid():
             form.save(commit=True)
             return redirect('rango:profile', user.username)
@@ -243,12 +257,13 @@ def profile(request, username):
             print(form.errors)
 
     return render(request, 'rango/profile.html',
-        {'userprofile': userprofile, 'selecteduser': user, 'form': form})
+                  {'userprofile': userprofile, 'selecteduser': user, 'form': form})
+
 
 def list_profiles(request):
     userprofile_list = UserProfile.objects.all()
     return render(request, 'rango/list_profiles.html',
-        {'userprofile_list' : userprofile_list})
+                  {'userprofile_list': userprofile_list})
 
 
 @login_required
@@ -267,6 +282,49 @@ def like_category(request):
             cat.save()
 
     return HttpResponse(likes)
+
+
+def get_category_list(max_results=0, starts_with=''):
+    cat_list = []
+    if starts_with:
+        cat_list = Category.objects.filter(name__istartswith=starts_with)
+
+        if max_results > 0:
+            if len(cat_list) > max_results:
+                cat_list = cat_list[:max_results]
+    return cat_list
+
+
+def suggest_category(request):
+    cat_list = []
+    starts_with = ''
+
+    if request.method == 'GET':
+        starts_with = request.GET['suggestion']
+        cat_list = get_category_list(8, starts_with)
+
+    return render(request, 'rango/cats.html', {'cats': cat_list})
+
+
+@login_required
+def auto_add_page(request):
+
+    cat_id = None
+    url = None
+    title = None
+    context_dict = {}
+    if request.method == 'GET':
+        cat_id = request.GET['category_id']
+        url = request.GET['url']
+        title = request.GET['title']
+        if cat_id:
+            category = Category.objects.get(id=int(cat_id))
+            p = Page.objects.get_or_create(category=category,
+                                        title=title, url=url)
+            pages = Page.objects.filter(category=category).order_by('-views')
+            context_dict['pages'] = pages
+    return render(request, 'rango/page_list.html', context_dict)
+
 
 class MyRegistrationView(RegistrationView):
     def get_success_url(self, user):
